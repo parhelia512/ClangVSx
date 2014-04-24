@@ -530,6 +530,24 @@ namespace ClangVSx
 
     #region Data Gathering
 
+    static internal string addQuotes(string input)
+    {
+      if (!input.Contains("\""))
+        return "\"" + input + "\"";
+      // check if they are in the right place
+      if (!(input[0] == '"' && input[input.Length - 1] == '"'))
+        throw new Exception("Unexpected quotes inside the string: " + input);
+      return input;
+    }
+
+    static internal string sanitizePath(string input)
+    {
+      input = input.Replace("\"", "");
+      if (input[0] == '/') input = input.Substring(1);
+      if (input[input.Length - 1] == '/') input = input.Remove(input.Length - 1);
+        return input;
+    }
+
     /// <summary>
     /// 
     /// </summary>
@@ -554,16 +572,14 @@ namespace ClangVSx
               result.Append("-I");
               String incCheck = parsedInc.Replace("\\", "/");
 
-              // Clang doesn't like the trailing / on these
-              if (incCheck == "./") incCheck = ".";
-              if (incCheck == "../") incCheck = "..";
+              // remove /
+              incCheck = sanitizePath(incCheck);
 
               // resolve any relative paths
               incCheck = Path.GetFullPath(incCheck);
 
-              result.Append("\"");
-              result.Append(incCheck);
-              result.Append("\" ");
+              result.Append(addQuotes(incCheck));
+			  result.Append(" ");
             }
           }
         }
@@ -584,12 +600,12 @@ namespace ClangVSx
             {
               String incCheck = parsedInc.Replace("\\", "/");
 
-              // resolve any relative paths
-              incCheck = Path.GetFullPath(incCheck);
+              // let clang resolve the path
+//            incCheck = Path.GetFullPath(incCheck);
 
-              result.Append("-include \"");
-              result.Append(incCheck);
-              result.Append("\" ");
+              result.Append("-include ");
+              result.Append(addQuotes(incCheck));
+              result.Append(" ");
             }
           }
         }
@@ -747,16 +763,16 @@ namespace ClangVSx
         {
           if (inc.Length > 0)
           {
-            uniqueDirs.Add(Path.GetFullPath(inc.Replace("\\", "/")));
+              uniqueDirs.Add(Path.GetFullPath(sanitizePath(inc.Replace("\\", "/"))));
           }
         }
 
         foreach (String inc in uniqueDirs)
         {
-          defaultCompilerString.Append("-isystem \"");
-          defaultCompilerString.Append(inc);
-          defaultCompilerString.Replace("\\", "", defaultCompilerString.Length - 1, 1);
-          defaultCompilerString.Append("\" ");
+          defaultCompilerString.Append("-isystem ");
+          defaultCompilerString.Append(addQuotes(inc));
+          defaultCompilerString.Replace("\\", "", defaultCompilerString.Length - 2, 1);
+          defaultCompilerString.Append(" ");
         }
       }
       defaultCompilerString.Append(" -fms-compatibility ");
